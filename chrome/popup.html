@@ -297,9 +297,9 @@
 
     <!-- API設定 -->
     <div class="field">
-      <label>Base URL</label>
-      <input type="url" id="baseUrl" placeholder="https://api.openai.com/v1" />
-      <span class="hint">OpenAI互換APIのエンドポイント</span>
+      <label>エンドポイントURL</label>
+      <input type="url" id="baseUrl" placeholder="https://codestral.mistral.ai/v1/fim/completions" />
+      <span class="hint">FIM (Fill-in-the-Middle) 形式のエンドポイント</span>
     </div>
 
     <div class="field">
@@ -309,8 +309,8 @@
 
     <div class="field">
       <label>モデル</label>
-      <input type="text" id="model" placeholder="gpt-4o-mini" />
-      <span class="hint">使用するモデルID（例: gpt-4o-mini, gemma-3-27b-it）</span>
+      <input type="text" id="model" placeholder="codestral-latest" />
+      <span class="hint">例: codestral-latest, codestral-2508</span>
     </div>
 
     <hr class="divider" />
@@ -326,9 +326,25 @@
     </div>
 
     <div class="field">
-      <label>システムプロンプト（任意）</label>
-      <textarea class="input-style" id="systemPrompt" placeholder="空白の場合はデフォルトの補完プロンプトを使用します。&#10;例: ビジネスメールの文体で補完してください。"></textarea>
-      <span class="hint">LLMへの指示。空白でデフォルト動作（自然な文章補完）</span>
+      <label>発火タイミング</label>
+      <select id="triggerMode">
+        <option value="all">すべての変更</option>
+        <option value="input">文字入力のみ（削除以外）</option>
+        <option value="whitespace">空白・改行のみ</option>
+      </select>
+      <label class="toggle-row" style="margin-top: 6px;">
+        <span class="toggle-label">カーソル移動時にも発火</span>
+        <input type="checkbox" id="triggerCursor" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="field">
+      <label>システムプロンプト</label>
+      <textarea class="input-style" id="systemPrompt"></textarea>
+      <span class="hint">補完の指示。空白でSNS投稿向け1行補完</span>
     </div>
 
     <hr class="divider" />

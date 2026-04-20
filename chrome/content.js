@@ -2,13 +2,16 @@
 
 const FW = {
   observed: new WeakMap(),
-  settings: { enabled: true, delay: 1, baseUrl: '', apiKey: '', model: 'gpt-4o-mini', systemPrompt: '' },
+  settings: { enabled: true, delay: 1, baseUrl: '', apiKey: '', model: 'codestral-latest', systemPrompt: '', triggerMode: 'all', triggerCursor: false },
 };
 
 // 設定の初期ロードと変更監視
 chrome.storage.sync.get(
-  ['enabled', 'delay', 'baseUrl', 'apiKey', 'model', 'systemPrompt'],
-  (data) => Object.assign(FW.settings, data)
+  ['enabled', 'delay', 'baseUrl', 'apiKey', 'model', 'systemPrompt', 'triggerMode', 'triggerCursor'],
+  (data) => {
+    Object.assign(FW.settings, data);
+    console.log('[Flash Writer] settings loaded:', { enabled: FW.settings.enabled, hasBaseUrl: !!FW.settings.baseUrl, hasApiKey: !!FW.settings.apiKey, model: FW.settings.model });
+  }
 );
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
@@ -30,9 +33,9 @@ function initTextarea(el) {
 
   let timer = null;
   let suggestion = '';
+  let suggestionCursor = 0;
   let overlay = null;
   let tabHint = null;
-  let abortController = null;
 
   // ── オーバーレイ生成 ──
   function setupOverlay() {
@@ -43,7 +46,7 @@ function initTextarea(el) {
 
     tabHint = document.createElement('div');
     tabHint.className = 'fw-tab-hint';
-    tabHint.textContent = '↹ Tab で確定';
+    tabHint.textContent = '\u21B9 Tab \u3067\u78BA\u5B9A';
     tabHint.style.display = 'none';
     document.body.appendChild(tabHint);
   }
@@ -69,22 +72,28 @@ function initTextarea(el) {
   }
 
   // ── 補完表示・消去 ──
-  function showSuggestion(text) {
+  function showSuggestion(text, cursorPos) {
     suggestion = text;
+    suggestionCursor = cursorPos;
     if (!overlay) return;
 
     overlay.innerHTML = '';
 
-    const typed = document.createElement('span');
-    typed.style.visibility = 'hidden';
-    typed.textContent = el.value;
+    const before = document.createElement('span');
+    before.style.visibility = 'hidden';
+    before.textContent = el.value.slice(0, cursorPos);
 
     const ghost = document.createElement('span');
     ghost.className = 'fw-ghost-text';
     ghost.textContent = text;
 
-    overlay.appendChild(typed);
+    const after = document.createElement('span');
+    after.style.visibility = 'hidden';
+    after.textContent = el.value.slice(cursorPos);
+
+    overlay.appendChild(before);
     overlay.appendChild(ghost);
+    overlay.appendChild(after);
     overlay.scrollTop = el.scrollTop;
 
     if (tabHint) {
@@ -97,22 +106,25 @@ function initTextarea(el) {
     suggestion = '';
     if (overlay) overlay.innerHTML = '';
     if (tabHint) tabHint.style.display = 'none';
-    if (abortController) { abortController.abort(); abortController = null; }
   }
 
   // ── API リクエスト ──
   async function fetchCompletion() {
-    if (!FW.settings.enabled || !FW.settings.baseUrl || !FW.settings.apiKey) return;
+    if (!FW.settings.enabled) return;
+    if (!FW.settings.baseUrl || !FW.settings.apiKey) {
+      console.warn('[Flash Writer] API\u304C\u8A2D\u5B9A\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002\u30B5\u30A4\u30C9\u30D1\u30CD\u30EB\u3067\u8A2D\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002');
+      return;
+    }
     const text = el.value;
     if (!text.trim()) return;
-
-    abortController = new AbortController();
+    const cursor = el.selectionStart;
 
     try {
       const resp = await chrome.runtime.sendMessage({
         type: 'AUTOCOMPLETE',
         payload: {
           text,
+          cursor,
           model: FW.settings.model,
           systemPrompt: FW.settings.systemPrompt,
         },
@@ -120,14 +132,42 @@ function initTextarea(el) {
 
       // 入力内容が変わっていたら破棄
       if (el.value !== text) return;
-      if (resp?.success && resp.data) showSuggestion(resp.data);
-    } catch (_) {
-      // 無視
+
+      if (resp?.success && resp.data) {
+        showSuggestion(resp.data, cursor);
+      } else if (!resp?.success && resp?.error) {
+        console.warn('[Flash Writer] API error:', resp.error);
+      }
+    } catch (err) {
+      console.warn('[Flash Writer] completion failed:', err?.message || err);
     }
   }
 
   // ── イベントハンドラ ──
-  function onInput() {
+  function shouldTrigger(e) {
+    const mode = FW.settings.triggerMode || 'all';
+    if (mode === 'all') return true;
+    const it = e.inputType || '';
+    if (mode === 'input') return !it.startsWith('delete');
+    if (mode === 'whitespace') {
+      if (it.startsWith('delete')) return false;
+      if (it === 'insertLineBreak' || it === 'insertParagraph') return true;
+      if (it === 'insertText') return e.data != null && /\s/.test(e.data);
+      return false;
+    }
+    return true;
+  }
+
+  function onInput(e) {
+    clearSuggestion();
+    if (!shouldTrigger(e)) return;
+    clearTimeout(timer);
+    const delayMs = Math.max(100, (FW.settings.delay ?? 1) * 1000);
+    timer = setTimeout(fetchCompletion, delayMs);
+  }
+
+  function onCursorMove() {
+    if (!FW.settings.triggerCursor) return;
     clearSuggestion();
     clearTimeout(timer);
     const delayMs = Math.max(100, (FW.settings.delay ?? 1) * 1000);
@@ -144,15 +184,19 @@ function initTextarea(el) {
   function onKeydown(e) {
     if (e.key === 'Tab' && suggestion) {
       e.preventDefault();
-      const start = el.selectionStart;
-      const val   = el.value;
-      el.value = val.slice(0, start) + suggestion + val.slice(el.selectionEnd);
-      el.selectionStart = el.selectionEnd = start + suggestion.length;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      const pos = suggestionCursor;
+      const val = el.value;
+      el.value = val.slice(0, pos) + suggestion + val.slice(pos);
+      el.selectionStart = el.selectionEnd = pos + suggestion.length;
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: suggestion }));
       clearSuggestion();
       return;
     }
     if (e.key === 'Escape') { clearSuggestion(); return; }
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+      onCursorMove();
+      return;
+    }
     if (!IGNORE_KEYS.has(e.key)) clearSuggestion();
   }
 
@@ -175,6 +219,7 @@ function initTextarea(el) {
   el.addEventListener('focus',   onFocus);
   el.addEventListener('blur',    onBlur);
   el.addEventListener('scroll',  onScroll);
+  el.addEventListener('click',   onCursorMove);
 
   // ウィンドウスクロール・リサイズ時に位置を同期
   window.addEventListener('scroll', syncPosition, { capture: true, passive: true });
@@ -187,7 +232,10 @@ function scan() {
 }
 
 scan();
+
+// document.documentElement は置き換わらないため、SPAでもObserverが外れない
+const observerTarget = document.documentElement;
 new MutationObserver(scan).observe(
-  document.body || document.documentElement,
+  observerTarget,
   { childList: true, subtree: true }
 );
