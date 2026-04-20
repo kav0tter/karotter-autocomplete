@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flash Writer 設定</title>
+  <style>
+    :root {
+      --accent:       #d97706;
+      --accent-dark:  #b45309;
+      --accent-soft:  rgba(217, 119, 6, .12);
+      --app-bg:       #faf5eb;
+      --surface-card: #ffffff;
+      --surface-soft: #fef3c7;
+      --text-primary:   #1c1008;
+      --text-secondary: #6b4f2a;
+      --text-muted:     #9a7040;
+      --border-soft:  rgba(180, 140, 80, .28);
+      --neutral-200:  #e5d4b0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --app-bg:       #1a1200;
+        --surface-card: #261a00;
+        --surface-soft: #2e2000;
+        --text-primary:   #fef3c7;
+        --text-secondary: #d4a85a;
+        --text-muted:     #8a6830;
+        --border-soft:  rgba(180, 130, 50, .22);
+        --neutral-200:  #3a2a00;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--app-bg);
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--accent);
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
+    header .subtitle { font-size: 11px; opacity: 0.8; margin-top: 1px; }
+
+    main { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea.input-style {
+      padding: 8px 10px;
+      border: 1px solid var(--border-soft);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--surface-card);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    input:focus, select:focus, textarea.input-style:focus { border-color: var(--accent); }
+
+    textarea.input-style {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .save-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      margin-top: 2px;
+    }
+    .save-btn:hover  { background: var(--accent-dark); }
+    .save-btn:active { filter: brightness(0.9); }
+
+    .stats-card {
+      background: var(--surface-soft);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stats-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stats-reset-btn {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .stats-reset-btn:hover { color: #dc2626; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+    .stats-item { display: flex; flex-direction: column; gap: 1px; }
+    .stats-value { font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+    .stats-label { font-size: 10px; color: var(--text-muted); }
+
+    .preset-select-row { display: flex; gap: 6px; align-items: center; }
+    .preset-select-row select { flex: 1; }
+    .preset-delete-btn {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border-soft);
+      border-radius: 6px;
+      background: var(--surface-card);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .preset-delete-btn:hover:not(:disabled) { color: #dc2626; border-color: #dc2626; }
+    .preset-delete-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .preset-save-row { display: flex; gap: 6px; margin-top: 6px; }
+    .preset-save-row input { flex: 1; }
+    .preset-save-btn {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .preset-save-btn:hover { background: var(--accent-dark); }
+
+    .status {
+      font-size: 12px;
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      display: none;
+    }
+    .status.success { background: var(--accent-soft); color: var(--accent-dark); display: block; }
+    .status.error   { background: #fee2e2; color: #991b1b; display: block; }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-label { font-size: 13px; color: var(--text-secondary); }
+    .toggle-row input { display: none; }
+    .toggle-track {
+      position: relative;
+      width: 36px; height: 20px;
+      background: var(--neutral-200);
+      border-radius: 9999px;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-row input:checked ~ .toggle-track { background: var(--accent); }
+    .toggle-row input:checked ~ .toggle-track .toggle-thumb { transform: translateX(16px); }
+
+    .master-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-soft);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .master-toggle-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .master-toggle-row input { display: none; }
+    .master-toggle-row .toggle-track { background: var(--neutral-200); }
+    .master-toggle-row input:checked ~ .toggle-track { background: var(--accent); }
+    .master-toggle-row input:checked ~ .toggle-track .toggle-thumb { transform: translateX(16px); }
+
+    .divider { border: none; border-top: 1px solid var(--border-soft); }
+
+    .delay-row { display: flex; align-items: center; gap: 8px; }
+    .delay-row input[type="number"] { width: 70px; flex-shrink: 0; }
+    .delay-row span { font-size: 13px; color: var(--text-secondary); }
+
+    .credit { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px; }
+    .credit a { color: var(--accent); text-decoration: none; }
+    .credit a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+    <div>
+      <h1>Flash Writer</h1>
+      <div class="subtitle">Karotter Autocomplete</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- マスタートグル -->
+    <label class="master-toggle-row">
+      <span class="master-toggle-label">補完機能を有効にする</span>
+      <input type="checkbox" id="enabled" />
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+    </label>
+
+    <hr class="divider" />
+
+    <!-- プリセット -->
+    <div class="field">
+      <label>プリセット</label>
+      <div class="preset-select-row">
+        <select id="presetSelect">
+          <option value="">— 選択して切り替え —</option>
+        </select>
+        <button class="preset-delete-btn" id="presetDeleteBtn" title="削除" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="preset-save-row">
+        <input type="text" id="presetName" placeholder="プリセット名を入力して保存" />
+        <button class="preset-save-btn" id="presetSaveBtn">保存</button>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- API設定 -->
+    <div class="field">
+      <label>Base URL</label>
+      <input type="url" id="baseUrl" placeholder="https://api.openai.com/v1" />
+      <span class="hint">OpenAI互換APIのエンドポイント</span>
+    </div>
+
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-..." />
+    </div>
+
+    <div class="field">
+      <label>モデル</label>
+      <input type="text" id="model" placeholder="gpt-4o-mini" />
+      <span class="hint">使用するモデルID（例: gpt-4o-mini, gemma-3-27b-it）</span>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 補完設定 -->
+    <div class="field">
+      <label>補完リクエストまでの遅延</label>
+      <div class="delay-row">
+        <input type="number" id="delay" min="0.1" max="10" step="0.1" placeholder="1.0" />
+        <span>秒</span>
+      </div>
+      <span class="hint">入力が止まってから補完リクエストを送るまでの秒数</span>
+    </div>
+
+    <div class="field">
+      <label>システムプロンプト（任意）</label>
+      <textarea class="input-style" id="systemPrompt" placeholder="空白の場合はデフォルトの補完プロンプトを使用します。&#10;例: ビジネスメールの文体で補完してください。"></textarea>
+      <span class="hint">LLMへの指示。空白でデフォルト動作（自然な文章補完）</span>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 使用状況 -->
+    <div class="stats-card">
+      <div class="stats-header">
+        <span class="stats-title">使用状況</span>
+        <button class="stats-reset-btn" id="statsResetBtn">リセット</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stats-item">
+          <span class="stats-value" id="statsRequests">—</span>
+          <span class="stats-label">リクエスト数</span>
+        </div>
+        <div class="stats-item">
+          <span class="stats-value" id="statsPrompt">—</span>
+          <span class="stats-label">入力トークン</span>
+        </div>
+        <div class="stats-item">
+          <span class="stats-value" id="statsCompletion">—</span>
+          <span class="stats-label">出力トークン</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="save-btn" id="saveBtn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      設定を保存
+    </button>
+
+    <div class="status" id="status"></div>
+
+    <p class="credit">developed by <a href="https://karotter.com/profile/v0" target="_blank">@v0</a></p>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
